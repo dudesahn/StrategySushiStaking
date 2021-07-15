@@ -18,21 +18,6 @@ import {
 } from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import "@openzeppelin/contracts/math/Math.sol";
 
-interface IUniswapV2Router02 {
-    function swapExactTokensForTokens(
-        uint256 amountIn,
-        uint256 amountOutMin,
-        address[] calldata path,
-        address to,
-        uint256 deadline
-    ) external returns (uint256[] memory amounts);
-
-    function getAmountsOut(uint256 amountIn, address[] calldata path)
-        external
-        view
-        returns (uint256[] memory amounts);
-}
-
 interface ISushiBar {
     function leave(uint256 _share) external; // this is withdrawing
     
@@ -49,8 +34,8 @@ contract StrategySushiStaking is BaseStrategy {
 
     address public constant xsushi = 0x8798249c2E607446EfB7Ad49eC89dD1865Ff4272;
     IERC20 public constant sushi =
-        IERC20(0x6B3595068778DD592e39A122f4f5a5cF09C90fE2);    
-    uint256 sushiDeposited;
+        IERC20(0x6B3595068778DD592e39A122f4f5a5cF09C90fE2);
+    uint256 public sushiStaked;  
 
     /* ========== CONSTRUCTOR ========== */
 
@@ -73,28 +58,24 @@ contract StrategySushiStaking is BaseStrategy {
     /* ========== VIEWS ========== */
 
     function name() external view override returns (string memory) {
-        return "StrategyUniverseStaking";
+        return "StrategySushiStaking";
     }
     
     function _xsushiSharePrice() internal view returns (uint256) {
         return sushi.balanceOf(address(xsushi)).div(IERC20(xsushi).totalSupply());
     }
-    
-    function _balanceOfStaked() internal view returns (uint256) {
-        return IERC20(xsushi).balanceOf(address(this)).mul(_xsushiSharePrice());
+
+    function _xsushiBalance() internal view returns (uint256) {
+        return IERC20(xsushi).balanceOf(address(this));
     }
     
     function _balanceOfWant() internal view returns (uint256) {
         return want.balanceOf(address(this));
     }
-    
-    function _xsushiBalance() internal view returns (uint256) {
-        return IERC20(xsushi).balanceOf(address(this));
-    }
-    
+
     function estimatedTotalAssets() public view override returns (uint256) {
         // look at our staked tokens and any free tokens sitting in the strategy
-        return _balanceOfStaked().add(_balanceOfWant());
+        return sushiStaked.add(_balanceOfWant());
     }
 
     /* ========== MUTATIVE FUNCTIONS ========== */
@@ -110,8 +91,9 @@ contract StrategySushiStaking is BaseStrategy {
     {
         // withdraw from our xsushi to prove how much we've earned
         ISushiBar(xsushi).leave(_xsushiBalance());
+        sushiStaked = 0;
         
-        // serious loss should never happen, but if it does (for instance, if Curve is hacked), let's record it accurately
+        // serious loss should never happen, but if it does (for instance, if sushi is hacked), let's record it accurately
         uint256 assets = estimatedTotalAssets();
         uint256 debt = vault.strategies(address(this)).totalDebt;
 
@@ -128,6 +110,10 @@ contract StrategySushiStaking is BaseStrategy {
              ISushiBar(xsushi).leave(
                 Math.min(_xsushiBalance(), _debtOutstanding.div(_xsushiSharePrice()))
              );
+             if (_xsushiBalance() == 0)
+             	sushiStaked = 0;
+             else
+             	sushiStaked = sushiStaked.sub(_debtOutstanding);
 
             _debtPayment = Math.min(_debtOutstanding, _balanceOfWant());
             if (_debtPayment < _debtOutstanding) {
@@ -146,6 +132,7 @@ contract StrategySushiStaking is BaseStrategy {
         // stake only if we have something to stake
         if (_toInvest > 0) {
             ISushiBar(xsushi).enter(_toInvest);
+            if (_balanceOfWant() == 0) sushiStaked = sushiStaked.add(_toInvest);
         }
     }
 
@@ -158,8 +145,13 @@ contract StrategySushiStaking is BaseStrategy {
         if (_amountNeeded > wantBal) {
             ISushiBar(xsushi).leave(
                 address(want),
-                Math.min(_xsushiBalance(), (_amountNeeded - wantBal).div(_xsushiSharePrice()))
+                Math.min(_xsushiBalance(), (_amountNeeded.sub(wantBal)).div(_xsushiSharePrice()))
             );
+            
+            if (_xsushiBalance() == 0)
+            	sushiStaked = 0;
+            else
+            	sushiStaked = sushiStaked.sub(_amountNeeded.sub(wantBal));
 
             uint256 withdrawnBal = _balanceOfWant();
             _liquidatedAmount = Math.min(_amountNeeded, withdrawnBal);
@@ -171,15 +163,17 @@ contract StrategySushiStaking is BaseStrategy {
     }
 
     function liquidateAllPositions() internal override returns (uint256) {
-        if (_balanceOfStaked() > 0) {
+        if (sushiStaked > 0) {
             ISushiBar(xsushi).leave(_xsushiBalance());
+            sushiStaked = 0;
         }
         return _balanceOfWant();
     }
 
     function prepareMigration(address _newStrategy) internal override {
-        if (_balanceOfStaked() > 0) {
+        if (sushiStaked > 0) {
             ISushiBar(xsushi).leave(_xsushiBalance());
+            sushiStaked = 0;
         }
     }
 
