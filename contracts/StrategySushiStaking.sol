@@ -132,7 +132,7 @@ contract StrategySushiStaking is BaseStrategy {
         // stake only if we have something to stake
         if (_toInvest > 0) {
             ISushiBar(xsushi).enter(_toInvest);
-            if (_balanceOfWant() == 0) sushiStaked = sushiStaked.add(_toInvest);
+            sushiStaked = sushiStaked.add(_toInvest);
         }
     }
 
