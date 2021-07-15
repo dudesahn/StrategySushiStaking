@@ -75,13 +75,21 @@ contract StrategySushiStaking is BaseStrategy {
     function name() external view override returns (string memory) {
         return "StrategyUniverseStaking";
     }
-
+    
+    function _xsushiSharePrice() internal view returns (uint256) {
+        return sushi.balanceOf(address(xsushi)).div(IERC20(xsushi).totalSupply());
+    }
+    
     function _balanceOfStaked() internal view returns (uint256) {
-        return this address's balance of xSushi * sushibar's balance of sushi / total supply of xSUSHI;
+        return IERC20(xsushi).balanceOf(address(this)).mul(_xsushiSharePrice());
     }
     
     function _balanceOfWant() internal view returns (uint256) {
         return want.balanceOf(address(this));
+    }
+    
+    function _xsushiBalance() internal view returns (uint256) {
+        return IERC20(xsushi).balanceOf(address(this));
     }
     
     function estimatedTotalAssets() public view override returns (uint256) {
@@ -101,8 +109,7 @@ contract StrategySushiStaking is BaseStrategy {
         )
     {
         // withdraw from our xsushi to prove how much we've earned
-        uint256 xsushiBalance = IERC20(xsushi).balanceOf(address(this));
-        ISushiBar(xsushi).leave(xsushiBalance);
+        ISushiBar(xsushi).leave(_xsushiBalance());
         
         // serious loss should never happen, but if it does (for instance, if Curve is hacked), let's record it accurately
         uint256 assets = estimatedTotalAssets();
@@ -118,9 +125,8 @@ contract StrategySushiStaking is BaseStrategy {
 
         // debtOustanding will only be > 0 in the event of revoking or lowering debtRatio of a strategy
         if (_debtOutstanding > 0) {
-             IStaking(staking).withdraw(
-                address(want),
-                Math.min(_balanceOfStaked(), _debtOutstanding)
+             ISushiBar(xsushi).leave(
+                Math.min(_xsushiBalance(), _debtOutstanding.div(_xsushiSharePrice()))
              );
 
             _debtPayment = Math.min(_debtOutstanding, _balanceOfWant());
@@ -150,13 +156,10 @@ contract StrategySushiStaking is BaseStrategy {
     {
         uint256 wantBal = _balanceOfWant();
         if (_amountNeeded > wantBal) {
-            // add in a check for > 0 as withdraw reverts with 0 amount
-            if (_balanceOfStaked() > 0) {
-                IStaking(staking).withdraw(
-                    address(want),
-                    Math.min(_balanceOfStaked(), _amountNeeded - wantBal)
-                );
-            }
+            ISushiBar(xsushi).leave(
+                address(want),
+                Math.min(_xsushiBalance(), (_amountNeeded - wantBal).div(_xsushiSharePrice()))
+            );
 
             uint256 withdrawnBal = _balanceOfWant();
             _liquidatedAmount = Math.min(_amountNeeded, withdrawnBal);
@@ -169,23 +172,15 @@ contract StrategySushiStaking is BaseStrategy {
 
     function liquidateAllPositions() internal override returns (uint256) {
         if (_balanceOfStaked() > 0) {
-            IStaking(staking).withdraw(address(want), _balanceOfStaked());
+            ISushiBar(xsushi).leave(_xsushiBalance());
         }
         return _balanceOfWant();
     }
 
-    // only do this if absolutely necessary; as rewards won't be claimed, and this also must be 10 weeks after our last withdrawal. this will revert if we don't have anything to withdraw.
-    function emergencyWithdraw() external onlyEmergencyAuthorized {
-        IStaking(staking).emergencyWithdraw(address(want));
-    }
-
     function prepareMigration(address _newStrategy) internal override {
         if (_balanceOfStaked() > 0) {
-            IStaking(staking).withdraw(address(want), _balanceOfStaked());
+            ISushiBar(xsushi).leave(_xsushiBalance());
         }
-
-        // send our claimed xyz to the new strategy
-        xyz.safeTransfer(_newStrategy, xyz.balanceOf(address(this)));
     }
 
     function protectedTokens()
@@ -195,7 +190,7 @@ contract StrategySushiStaking is BaseStrategy {
         returns (address[] memory)
     {
         address[] memory protected = new address[](1);
-        protected[0] = address(xyz);
+        protected[0] = address(xsushi);
 
         return protected;
     }
@@ -233,9 +228,9 @@ contract StrategySushiStaking is BaseStrategy {
         // Trigger if we have a loss to report
         if (total.add(debtThreshold) < params.totalDebt) return true;
 
-        // Trigger if it's been long enough since our last harvest based on our DCA schedule. each epoch is 1 week.
+        // Trigger if we haven't harvested in the last week
         uint256 week = 86400 * 7;
-        if (block.timestamp.sub(params.lastReport) > week.div(sellsPerEpoch)) {
+        if (block.timestamp.sub(params.lastReport) > week {
             return true;
         }
     }
