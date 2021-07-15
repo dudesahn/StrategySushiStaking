@@ -1,33 +1,58 @@
-# TODO: Add tests that show proper migration of the strategy to a newer one
-#       Use another copy of the strategy to simulate the migration
-#       Show that nothing is lost!
+import brownie
+from brownie import Contract
+from brownie import config
 
-import pytest
-
-
+# test passes as of 21-06-26
 def test_migration(
-    chain,
+    gov,
     token,
     vault,
-    strategy,
-    amount,
-    Strategy,
+    guardian,
     strategist,
-    gov,
-    user,
-    RELATIVE_APPROX,
+    whale,
+    strategy,
+    chain,
+    strategist_ms,
+    StrategyUniverseStaking,
+    rewardscontract,
 ):
-    # Deposit to the vault and harvest
-    token.approve(vault.address, amount, {"from": user})
-    vault.deposit(amount, {"from": user})
-    chain.sleep(1)
-    strategy.harvest()
-    assert pytest.approx(strategy.estimatedTotalAssets(), rel=RELATIVE_APPROX) == amount
 
-    # migrate to a new strategy
-    new_strategy = strategist.deploy(Strategy, vault)
+    ## deposit to the vault after approving
+    token.approve(vault, 2 ** 256 - 1, {"from": whale})
+    vault.deposit(1000e18, {"from": whale})
+    chain.sleep(1)
+    strategy.harvest({"from": gov})
+    chain.sleep(1)
+
+    # deploy our new strategy
+    new_strategy = guardian.deploy(StrategyUniverseStaking, vault, rewardscontract)
+    total_old = strategy.estimatedTotalAssets()
+
+    # migrate our old strategy
     vault.migrateStrategy(strategy, new_strategy, {"from": gov})
-    assert (
-        pytest.approx(new_strategy.estimatedTotalAssets(), rel=RELATIVE_APPROX)
-        == amount
-    )
+
+    # assert that our old strategy is empty
+    updated_total_old = strategy.estimatedTotalAssets()
+    assert updated_total_old == 0
+
+    # harvest to get funds back in strategy
+    new_strategy.harvest({"from": gov})
+    new_strat_balance = new_strategy.estimatedTotalAssets()
+    assert new_strat_balance >= total_old
+
+    startingVault = vault.totalAssets()
+    print("\nVault starting assets with new strategy: ", startingVault)
+
+    # simulate nine days of earnings to make sure we hit at least one epoch of rewards
+    chain.sleep(86400 * 9)
+    chain.mine(1)
+
+    # simulate a day of waiting for share price to bump back up
+    chain.sleep(86400)
+    chain.mine(1)
+
+    # Test out our migrated strategy, confirm we're making a profit
+    new_strategy.harvest({"from": gov})
+    vaultAssets_2 = vault.totalAssets()
+    assert vaultAssets_2 > startingVault
+    print("\nAssets after 1 day harvest: ", vaultAssets_2)
