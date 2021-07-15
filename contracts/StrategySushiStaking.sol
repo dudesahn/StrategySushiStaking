@@ -35,7 +35,7 @@ contract StrategySushiStaking is BaseStrategy {
     address public constant xsushi = 0x8798249c2E607446EfB7Ad49eC89dD1865Ff4272;
     IERC20 public constant sushi =
         IERC20(0x6B3595068778DD592e39A122f4f5a5cF09C90fE2);
-    uint256 public sushiStaked;  
+    uint256 public sushiStaked; // use this to track how much sushi we have deposited. this is helpful for correctly assessing profit.
 
     /* ========== CONSTRUCTOR ========== */
 
@@ -99,7 +99,7 @@ contract StrategySushiStaking is BaseStrategy {
 
         // if assets are greater than debt, things are working great! loss will be 0 by default
         if (assets > debt) {
-            _profit = _balanceOfWant();
+            _profit = assets.sub(debt);
         } else {
             // if assets are less than debt, we are in trouble. profit will be 0 by default
             _loss = debt.sub(assets);
