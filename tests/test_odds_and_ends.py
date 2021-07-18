@@ -4,34 +4,41 @@ from brownie import config
 import math
 
 
-def test_migration(
-    StrategySushiStaking,
+def test_odds_and_ends(
     gov,
     token,
     vault,
-    guardian,
     strategist,
     whale,
     strategy,
     chain,
     strategist_ms,
+    xsushi,
+    vault_person,
+    StrategySushiStaking,
 ):
+    ## pretend we're the vault, send all funds away
+    vault.setEmergencyShutdown(True, {"from": gov})
+    strategy.setEmergencyExit({"from": gov})
+    chain.sleep(1)
+    strategy.harvest({"from": gov})
+    chain.sleep(1)
+    to_send = token.balanceOf(vault)
+    token.transfer(gov, to_send, {"from": vault_person})
+    assert vault.totalAssets() == 0
 
-    ## deposit to the vault after approving
-    token.approve(vault, 2 ** 256 - 1, {"from": whale})
-    vault.deposit(1000e18, {"from": whale})
+    # now we can try and harvest when the vault is completely empty
     chain.sleep(1)
     strategy.harvest({"from": gov})
     chain.sleep(1)
 
+    # we can also withdraw from an empty vault as well
+    vault.withdraw({"from": strategist})
+
+    # we can try to migrate too, lol
     # deploy our new strategy
     new_strategy = strategist.deploy(StrategySushiStaking, vault)
     total_old = strategy.estimatedTotalAssets()
-    
-    # can we harvest an unactivated strategy? should be no
-    tx = new_strategy.harvestTrigger(0, {"from": gov})
-    print("\nShould we harvest? Should be False.", tx)
-    assert tx == False
 
     # migrate our old strategy
     vault.migrateStrategy(strategy, new_strategy, {"from": gov})
@@ -65,3 +72,18 @@ def test_migration(
     # in this case, we don't profit and lose a few wei on xsushi. confirm we're no more than 5 wei off.
     assert math.isclose(vaultAssets_2, startingVault, abs_tol=5)
     print("\nAssets after 1 day harvest: ", vaultAssets_2)
+
+    # check our oracle
+    one_eth_in_want = strategy.ethToWant(1e18)
+    print("This is how much want one ETH buys:", one_eth_in_want)
+    zero_eth_in_want = strategy.ethToWant(0)
+    
+    # check our views
+    strategy.apiVersion()
+    strategy.isActive()
+    
+    # tend stuff
+    chain.sleep(1)
+    strategy.tend({"from": gov})
+    chain.sleep(1)
+    strategy.tendTrigger(0, {"from": gov})

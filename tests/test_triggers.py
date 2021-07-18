@@ -1,10 +1,11 @@
 import brownie
 from brownie import Contract
 from brownie import config
+import math
 
-# test passes as of 21-06-26
+
 def test_triggers(
-    gov, token, vault, dudesahn, strategist, whale, strategy, chain, strategist_ms,
+    gov, token, vault, strategist, whale, strategy, chain, strategist_ms,
 ):
     ## deposit to the vault after approving
     startingWhale = token.balanceOf(whale)
@@ -38,9 +39,35 @@ def test_triggers(
     assert tx == True
 
     # simulate a day of waiting for share price to bump back up
-    chain.sleep(86400)
+    chain.sleep(86400 * 9)
     chain.mine(1)
+    tx = strategy.harvestTrigger(0, {"from": gov})
+    print("\nShould we harvest? Should be true.", tx)
+    assert tx == True
 
-    # withdraw and confirm we made money
+    # normally, we would assert value withdrawn to be greater than or equal to value deposited
+    # in this case, we don't profit and lose a few wei on xsushi. confirm we're no more than 5 wei off.
     vault.withdraw({"from": whale})
-    assert token.balanceOf(whale) > startingWhale
+    assert math.isclose(token.balanceOf(whale), startingWhale, abs_tol=5)
+
+
+def test_less_useful_triggers(
+    gov, token, vault, strategist, whale, strategy, chain, strategist_ms,
+):
+    ## deposit to the vault after approving
+    startingWhale = token.balanceOf(whale)
+    token.approve(vault, 2 ** 256 - 1, {"from": whale})
+    vault.deposit(1000e18, {"from": whale})
+    newWhale = token.balanceOf(whale)
+    starting_assets = vault.totalAssets()
+    chain.sleep(1)
+    strategy.harvest({"from": gov})
+    chain.sleep(1)
+    
+    strategy.setMinReportDelay(100, {"from": gov})
+    tx = strategy.harvestTrigger(0, {"from": gov})
+    print("\nShould we harvest? Should be False.", tx)
+    assert tx == False
+    
+    chain.sleep(200)
+

@@ -1,10 +1,11 @@
 import brownie
 from brownie import Contract
 from brownie import config
+import math
 
 # test passes as of 21-06-26
 def test_change_debt(
-    gov, token, vault, dudesahn, strategist, whale, strategy, chain, rewardscontract,
+    gov, token, vault, strategist, whale, strategy, chain,
 ):
     ## deposit to the vault after approving
     startingWhale = token.balanceOf(whale)
@@ -26,7 +27,7 @@ def test_change_debt(
 
     assert strategy.estimatedTotalAssets() <= (startingLive)
 
-    # simulate nine days of earnings to make sure we hit at least one epoch of rewards
+    # simulate nine days of earnings
     chain.sleep(86400 * 9)
     chain.mine(1)
 
@@ -35,12 +36,16 @@ def test_change_debt(
     chain.sleep(1)
     strategy.harvest({"from": gov})
     chain.sleep(1)
-    assert strategy.estimatedTotalAssets() >= startingLive
+
+    # normally, we would assert estimatedTotalAssets to be greater than or equal to startingLive
+    # in this case, we don't profit and lose a few wei on xsushi. confirm we're no more than 5 wei off.
+    assert math.isclose(strategy.estimatedTotalAssets(), startingLive, abs_tol=5)
 
     # simulate a day of waiting for share price to bump back up
     chain.sleep(86400)
     chain.mine(1)
 
-    # withdraw and confirm we made money or at least got it back
+    # normally, we would assert value withdrawn to be greater than or equal to value deposited
+    # in this case, we don't profit and lose a few wei on xsushi. confirm we're no more than 5 wei off.
     vault.withdraw({"from": whale})
-    assert token.balanceOf(whale) >= startingWhale
+    assert math.isclose(token.balanceOf(whale), startingWhale, abs_tol=5)

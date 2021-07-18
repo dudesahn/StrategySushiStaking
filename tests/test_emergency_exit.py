@@ -1,10 +1,11 @@
+import math
 import brownie
 from brownie import Contract
 from brownie import config
 
 # test passes as of 21-06-26
 def test_emergency_exit(
-    gov, token, vault, whale, strategy, chain, staking,
+    gov, token, vault, whale, strategy, chain,
 ):
     ## deposit to the vault after approving
     startingWhale = token.balanceOf(whale)
@@ -14,8 +15,8 @@ def test_emergency_exit(
     strategy.harvest({"from": gov})
     chain.sleep(1)
 
-    # simulate nine days of earnings to make sure we hit at least one epoch of rewards
-    chain.sleep(86400 * 9)
+    # simulate seven days of earnings
+    chain.sleep(86400 * 7)
     chain.mine(1)
     chain.sleep(1)
     strategy.harvest({"from": gov})
@@ -27,12 +28,12 @@ def test_emergency_exit(
     strategy.harvest({"from": gov})
     chain.sleep(1)
     assert strategy.estimatedTotalAssets() == 0
-    assert staking.balanceOf(strategy, token) == 0
 
     # simulate a day of waiting for share price to bump back up
     chain.sleep(86400)
     chain.mine(1)
 
-    # withdraw and confirm we made money
+    # normally, we would assert value withdrawn to be greater than or equal to value deposited
+    # in this case, we don't profit and lose a few wei on xsushi. confirm we're no more than 5 wei off.
     vault.withdraw({"from": whale})
-    assert token.balanceOf(whale) > startingWhale
+    assert math.isclose(token.balanceOf(whale), startingWhale, abs_tol=5)

@@ -21,31 +21,24 @@ def healthCheck():
 
 
 @pytest.fixture(scope="module")
-def xyz():
+def farmed():
+    # this is the token that we are farming and selling for more of our want. In this case, we don't have one (this contract is xyz, from old strat).
     yield Contract("0x618679dF9EfCd19694BB1daa8D00718Eacfa2883")
 
 
+# Add any extra contracts we need here, such as staking contracts
+# here, I add xsushi, because this is essentially our staking contract
 @pytest.fixture(scope="module")
-def rewardscontract():
-    yield Contract("0xe3e1860a5653c030818226e0cB1efb4a477A5F32")
-
-
-@pytest.fixture(scope="module")
-def staking():
-    yield Contract("0x2d615795a8bdb804541C69798F13331126BA0c09")
+def xsushi():
+    yield Contract("0x8798249c2E607446EfB7Ad49eC89dD1865Ff4272")
 
 
 # Define any accounts in this section
-
 # for live testing, governance is the strategist MS; we will update this before we endorse
+# normal gov is ychad, 0xFEB4acf3df3cDEA7399794D0869ef76A6EfAff52
 @pytest.fixture(scope="module")
 def gov(accounts):
     yield accounts.at("0x16388463d60FFE0661Cf7F1f31a7D658aC790ff7", force=True)
-
-
-@pytest.fixture(scope="module")
-def dudesahn(accounts):
-    yield accounts.at("0x8Ef63b525fceF7f8662D98F77f5C9A86ae7dFE09", force=True)
 
 
 @pytest.fixture(scope="module")
@@ -56,7 +49,7 @@ def strategist_ms(accounts):
 
 @pytest.fixture(scope="module")
 def keeper(accounts):
-    yield accounts.at("0x8Ef63b525fceF7f8662D98F77f5C9A86ae7dFE09", force=True)
+    yield accounts.at("0xBedf3Cf16ba1FcE6c3B751903Cf77E51d51E05b8", force=True)
 
 
 @pytest.fixture(scope="module")
@@ -76,36 +69,81 @@ def management(accounts):
 
 @pytest.fixture(scope="module")
 def strategist(accounts):
-    yield accounts.at("0x8Ef63b525fceF7f8662D98F77f5C9A86ae7dFE09", force=True)
+    yield accounts.at("0xBedf3Cf16ba1FcE6c3B751903Cf77E51d51E05b8", force=True)
+
+
+@pytest.fixture(scope="module")
+def vault_person(accounts):
+    yield accounts.at("0x497590d2d57f05cf8B42A36062fA53eBAe283498", force=True)
 
 
 @pytest.fixture(scope="module")
 def whale(accounts):
-    # Totally in it for the tech (largest EOA holder of SUSHI, binance wallet)
+    # Totally in it for the tech
+    # Update this with a large holder of your want token (largest EOA holder of SUSHI, binance wallet)
     whale = accounts.at("0x28C6c06298d514Db089934071355E5743bf21d60", force=True)
     yield whale
 
 
+# list any existing strategies here
+@pytest.fixture(scope="module")
+def LiveStrategy_1():
+    yield Contract("0xC1810aa7F733269C39D640f240555d0A4ebF4264")
+
+
+# use this if you need to deploy the vault
+# @pytest.fixture(scope="function")
+# def vault(pm, gov, rewards, guardian, management, token, chain):
+#     Vault = pm(config["dependencies"][0]).Vault
+#     vault = guardian.deploy(Vault)
+#     vault.initialize(token, gov, rewards, "", "", guardian)
+#     vault.setDepositLimit(2 ** 256 - 1, {"from": gov})
+#     vault.setManagement(management, {"from": gov})
+#     chain.sleep(1)
+#     yield vault
+
+# use this if your vault is already deployed
 @pytest.fixture(scope="function")
 def vault(pm, gov, rewards, guardian, management, token, chain):
     vault = Contract("0x497590d2d57f05cf8B42A36062fA53eBAe283498")
     yield vault
 
 
+# replace the first value with the name of your strategy
 @pytest.fixture(scope="function")
 def strategy(
+    StrategySushiStaking,
     strategist,
     keeper,
     vault,
-    StrategyUniverseStaking,
     gov,
     guardian,
-    rewardscontract,
-    whale,
     token,
-    chain,
     healthCheck,
+    chain,
+    LiveStrategy_1,
 ):
     # parameters for this are: strategy, vault, max deposit, minTimePerInvest, slippage protection (10000 = 100% slippage allowed),
-    strategy = Contract("0xC1810aa7F733269C39D640f240555d0A4ebF4264")
+    strategy = strategist.deploy(StrategySushiStaking, vault)
+    strategy.setKeeper(keeper, {"from": gov})
+    # set our management fee to zero so it doesn't mess with our profit checking
+    vault.setManagementFee(0, {"from": gov})
+    # reduce our current strategy's debtRatio to 0 and harvest
+    vault.updateStrategyDebtRatio(LiveStrategy_1, 0, {"from": gov})
+    LiveStrategy_1.harvest({"from": gov})
+    # add our new strategy
+    vault.addStrategy(strategy, 10_000, 0, 2 ** 256 - 1, 1_000, {"from": gov})
+    strategy.setHealthCheck(healthCheck, {"from": gov})
+    strategy.setDoHealthCheck(True, {"from": gov})
+    chain.sleep(1)
+    strategy.harvest({"from": gov})
+    chain.sleep(1)
     yield strategy
+
+
+# use this if your strategy is already deployed
+# @pytest.fixture(scope="function")
+# def strategy():
+#     # parameters for this are: strategy, vault, max deposit, minTimePerInvest, slippage protection (10000 = 100% slippage allowed),
+#     strategy = Contract("0xC1810aa7F733269C39D640f240555d0A4ebF4264")
+#     yield strategy
