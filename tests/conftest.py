@@ -32,6 +32,10 @@ def farmed():
 def xsushi():
     yield Contract("0x8798249c2E607446EfB7Ad49eC89dD1865Ff4272")
 
+@pytest.fixture(scope="module")
+def other_vault_strategy():
+    yield Contract("0x8423590CD0343c4E18d35aA780DF50a5751bebae")
+
 
 # Define any accounts in this section
 # for live testing, governance is the strategist MS; we will update this before we endorse

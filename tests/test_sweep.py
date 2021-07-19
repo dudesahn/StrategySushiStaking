@@ -4,7 +4,7 @@ from brownie import config
 
 
 def test_sweep(
-    gov, token, vault, strategist, whale, strategy, chain, strategist_ms, farmed
+    gov, token, vault, strategist, whale, strategy, chain, strategist_ms, farmed, xsushi
 ):
 
     ## deposit to the vault after approving
@@ -26,3 +26,7 @@ def test_sweep(
     # Vault share token doesn't work
     with brownie.reverts("!shares"):
         strategy.sweep(vault.address, {"from": gov})
+
+    # xsushi doesn't work
+    with brownie.reverts("!protected"):
+        strategy.sweep(xsushi, {"from": gov})

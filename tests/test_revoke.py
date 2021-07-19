@@ -9,6 +9,7 @@ def test_revoke_strategy_from_vault(
 ):
 
     ## deposit to the vault after approving
+    startingWhale = token.balanceOf(whale)
     token.approve(vault, 2 ** 256 - 1, {"from": whale})
     vault.deposit(1000e18, {"from": whale})
     chain.sleep(1)
@@ -19,6 +20,10 @@ def test_revoke_strategy_from_vault(
     vault_holdings_starting = token.balanceOf(vault)
     strategy_starting = strategy.estimatedTotalAssets()
     vault.revokeStrategy(strategy.address, {"from": gov})
+    
+    chain.sleep(1)
+    strategy.harvest({"from": gov})
+    chain.sleep(1)
     
     chain.sleep(1)
     strategy.harvest({"from": gov})
@@ -35,6 +40,6 @@ def test_revoke_strategy_from_vault(
     chain.sleep(86400)
     chain.mine(1)
 
-    # normally, we would assert value to be greater than or equal to value deposited
-    # in this case, we don't profit and lose a few wei on xsushi. confirm we're no more than 5 wei off.
-    assert math.isclose(vault.totalAssets(), vaultAssets_after_revoke, abs_tol=5)
+    # withdraw and confirm we made money
+    vault.withdraw({"from": whale})
+    assert token.balanceOf(whale) >= startingWhale

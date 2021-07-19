@@ -57,7 +57,7 @@ contract StrategySushiStaking is BaseStrategy {
         minReportDelay = 0;
         maxReportDelay = 604800; // 7 days in seconds, if we hit this then harvestTrigger = True
         profitFactor = 400;
-        debtThreshold = 4000 * 1e18; // we shouldn't ever have debt, but set a bit of a buffer
+        debtThreshold = 1 * 1e18; // we shouldn't ever have loss, but set a bit of a buffer
         healthCheck = address(0xDDCea799fF1699e98EDF118e0629A974Df7DF012); // health.ychad.eth
 
         // want is SUSHI
@@ -84,7 +84,6 @@ contract StrategySushiStaking is BaseStrategy {
     }
 
     function estimatedTotalAssets() public view override returns (uint256) {
-        // look only at free tokens sitting in the strategy
         return
             _balanceOfWant().add(
                 _xsushiSharePrice().mul(_xsushiBalance()).div(1e18)

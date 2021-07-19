@@ -45,7 +45,6 @@ def test_change_debt(
     chain.sleep(86400)
     chain.mine(1)
 
-    # normally, we would assert value withdrawn to be greater than or equal to value deposited
-    # in this case, we don't profit and lose a few wei on xsushi. confirm we're no more than 5 wei off.
+    # withdraw and confirm we made money
     vault.withdraw({"from": whale})
-    assert math.isclose(token.balanceOf(whale), startingWhale, abs_tol=5)
+    assert token.balanceOf(whale) >= startingWhale

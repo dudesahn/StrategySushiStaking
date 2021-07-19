@@ -14,8 +14,9 @@ def test_setters(
     strategy.setMetadataURI(0, {"from": gov})
     strategy.setMinReportDelay(100, {"from": gov})
     strategy.setProfitFactor(1000, {"from": gov})
-    strategy.setRewards(strategist, {"from": strategist})
-    strategy.setStrategist(strategist, {"from": strategist})
+    strategy.setRewards(gov, {"from": strategist})
+    
+    strategy.setStrategist(strategist, {"from": gov})
     name = strategy.name()
     print("Strategy Name:", name)
     
@@ -32,14 +33,12 @@ def test_setters(
     strategy.harvest({"from": gov})
     chain.sleep(1)
     
-    
-    strategy.setMaxReportDelay(10, {"from": gov})
     zero = "0x0000000000000000000000000000000000000000"
 
     with brownie.reverts():
         strategy.setKeeper(zero, {"from": gov})
     with brownie.reverts():
-        strategy.setRewards(zero, {"from": gov})
+        strategy.setRewards(zero, {"from": strategist})
     with brownie.reverts():
         strategy.setStrategist(zero, {"from": gov})
     with brownie.reverts():
@@ -51,6 +50,17 @@ def test_setters(
     with brownie.reverts():
         strategy.setRewards(strategist, {"from": whale})
     
+    
+    # try a health check with zero address as health check
+    strategy.setHealthCheck(zero, {"from": gov})
+    strategy.setDoHealthCheck(True, {"from": gov})
+    strategy.harvest({"from": gov})
+    
+    # try a health check with random contract as health check
+    strategy.setHealthCheck(gov, {"from": gov})
+    strategy.setDoHealthCheck(True, {"from": gov})
+    with brownie.reverts():
+    	strategy.harvest({"from": gov})
     
     # set emergency exit last
     strategy.setEmergencyExit({"from": gov})

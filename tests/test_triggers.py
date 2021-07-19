@@ -41,14 +41,14 @@ def test_triggers(
     # simulate a day of waiting for share price to bump back up
     chain.sleep(86400 * 9)
     chain.mine(1)
+    strategy.setMaxReportDelay(1e18, {"from": gov})
     tx = strategy.harvestTrigger(0, {"from": gov})
     print("\nShould we harvest? Should be true.", tx)
     assert tx == True
 
-    # normally, we would assert value withdrawn to be greater than or equal to value deposited
-    # in this case, we don't profit and lose a few wei on xsushi. confirm we're no more than 5 wei off.
+    # withdraw and confirm we made money
     vault.withdraw({"from": whale})
-    assert math.isclose(token.balanceOf(whale), startingWhale, abs_tol=5)
+    assert token.balanceOf(whale) >= startingWhale
 
 
 def test_less_useful_triggers(

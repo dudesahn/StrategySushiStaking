@@ -40,10 +40,8 @@ def test_simple_harvest(
     chain.sleep(1)
     new_assets = vault.totalAssets()
     # we can't use strategyEstimated Assets because the profits are sent to the vault
-
-    # normally, we would assert value to be greater than or equal to previous value
-    # in this case, we don't profit and lose a few wei on xsushi. confirm we're no more than 5 wei off.
-    assert math.isclose(new_assets, old_assets, abs_tol=5)
+    # in this case, we lose a few wei on xsushi. confirm we're no more than 5 wei off.
+    assert (new_assets >= old_assets or math.isclose(new_assets, old_assets, abs_tol=5))
     print("\nAssets after 7 days: ", new_assets / 1e18)
 
     # Display estimated APR
@@ -58,7 +56,6 @@ def test_simple_harvest(
     chain.sleep(86400)
     chain.mine(1)
 
-    # normally, we would assert value withdrawn to be greater than or equal to value deposited
-    # in this case, we don't profit and lose a few wei on xsushi. confirm we're no more than 5 wei off.
+    # withdraw and confirm we made money, or at least that we have about the same
     vault.withdraw({"from": whale})
-    assert math.isclose(token.balanceOf(whale), startingWhale, abs_tol=5)
+    assert (token.balanceOf(whale) >= startingWhale or math.isclose(token.balanceOf(whale), startingWhale, abs_tol=5))
