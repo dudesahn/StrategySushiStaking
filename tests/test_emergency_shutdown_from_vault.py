@@ -5,7 +5,12 @@ import math
 
 # test passes as of 21-06-26
 def test_emergency_shutdown_from_vault(
-    gov, token, vault, whale, strategy, chain,
+    gov,
+    token,
+    vault,
+    whale,
+    strategy,
+    chain,
 ):
     ## deposit to the vault after approving
     startingWhale = token.balanceOf(whale)
@@ -35,4 +40,6 @@ def test_emergency_shutdown_from_vault(
 
     # withdraw and confirm we made money
     vault.withdraw({"from": whale})
-    assert (token.balanceOf(whale) >= startingWhale or math.isclose(token.balanceOf(whale), startingWhale, abs_tol=5))
+    assert token.balanceOf(whale) >= startingWhale or math.isclose(
+        token.balanceOf(whale), startingWhale, abs_tol=5
+    )

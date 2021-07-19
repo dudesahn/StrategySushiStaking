@@ -66,7 +66,7 @@ def test_odds_and_ends(
 
     # Test out our migrated strategy, confirm we're making a profit
     new_strategy.harvest({"from": gov})
-    vaultAssets_2 = vault.totalAssets()    
+    vaultAssets_2 = vault.totalAssets()
     assert vaultAssets_2 >= startingVault
     print("\nAssets after 1 day harvest: ", vaultAssets_2)
 
@@ -74,18 +74,17 @@ def test_odds_and_ends(
     one_eth_in_want = strategy.ethToWant(1e18)
     print("This is how much want one ETH buys:", one_eth_in_want)
     zero_eth_in_want = strategy.ethToWant(0)
-    
+
     # check our views
     strategy.apiVersion()
     strategy.isActive()
-    
+
     # tend stuff
     chain.sleep(1)
     strategy.tend({"from": gov})
     chain.sleep(1)
     strategy.tendTrigger(0, {"from": gov})
-    
-    
+
 
 def test_odds_and_ends_2(
     gov,
@@ -115,6 +114,7 @@ def test_odds_and_ends_2(
     # we can also withdraw from an empty vault as well
     vault.withdraw({"from": strategist})
 
+
 def test_weird_reverts(
     gov,
     token,
@@ -127,21 +127,21 @@ def test_weird_reverts(
     xsushi,
     vault_person,
     StrategySushiStaking,
-    other_vault_strategy
+    other_vault_strategy,
 ):
-	
-	# only vault can call this
+
+    # only vault can call this
     with brownie.reverts():
         strategy.migrate(strategist_ms, {"from": gov})
 
-	# can't migrate to a different vault
+    # can't migrate to a different vault
     with brownie.reverts():
         vault.migrateStrategy(strategy, other_vault_strategy, {"from": gov})
-        
+
     # can't withdraw from a non-vault address
     with brownie.reverts():
         strategy.withdraw(1e18, {"from": gov})
-    
+
     # can't do health check with a non-health check contract
     with brownie.reverts():
         strategy.withdraw(1e18, {"from": gov})

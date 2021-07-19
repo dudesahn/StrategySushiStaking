@@ -4,7 +4,13 @@ import math
 
 # test passes as of 21-06-26
 def test_change_debt_with_profit(
-    gov, token, vault, strategist, whale, strategy, chain, 
+    gov,
+    token,
+    vault,
+    strategist,
+    whale,
+    strategy,
+    chain,
 ):
 
     ## deposit to the vault after approving
@@ -60,13 +66,19 @@ def test_change_debt_with_profit(
 
     # specifically check that our gain is greater than our donation
     # for all of these, we lose a few wei going in and out of xsushi, so we use our isclose function. confirm we're no more than 5 wei off.
-    assert (new_params["totalGain"] - prev_params["totalGain"] > donation or math.isclose(new_params["totalGain"] - prev_params["totalGain"], donation, abs_tol=5))
+    assert new_params["totalGain"] - prev_params[
+        "totalGain"
+    ] > donation or math.isclose(
+        new_params["totalGain"] - prev_params["totalGain"], donation, abs_tol=5
+    )
 
     # check to make sure that our debtRatio is about half of our previous debt
     assert new_params["debtRatio"] == currentDebt / 2
 
     # check that we didn't add any more loss, or at least no more than 2 wei
-    assert (new_params["totalLoss"] == prev_params["totalLoss"] or math.isclose(new_params["totalLoss"], prev_params["totalLoss"], abs_tol=2))
+    assert new_params["totalLoss"] == prev_params["totalLoss"] or math.isclose(
+        new_params["totalLoss"], prev_params["totalLoss"], abs_tol=2
+    )
 
     # assert that our vault total assets, multiplied by our debtRatio, is about equal to our estimated total assets (within 5 wei)
     # we multiply this by the debtRatio of our strategy out of 1 total (we've gone down to 50% above)

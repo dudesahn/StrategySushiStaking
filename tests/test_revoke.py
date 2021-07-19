@@ -5,7 +5,12 @@ import math
 
 
 def test_revoke_strategy_from_vault(
-    gov, token, vault, whale, chain, strategy,
+    gov,
+    token,
+    vault,
+    whale,
+    chain,
+    strategy,
 ):
 
     ## deposit to the vault after approving
@@ -20,11 +25,11 @@ def test_revoke_strategy_from_vault(
     vault_holdings_starting = token.balanceOf(vault)
     strategy_starting = strategy.estimatedTotalAssets()
     vault.revokeStrategy(strategy.address, {"from": gov})
-    
+
     chain.sleep(1)
     strategy.harvest({"from": gov})
     chain.sleep(1)
-    
+
     chain.sleep(1)
     strategy.harvest({"from": gov})
     chain.sleep(1)

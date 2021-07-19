@@ -5,7 +5,14 @@ import math
 
 
 def test_triggers(
-    gov, token, vault, strategist, whale, strategy, chain, strategist_ms,
+    gov,
+    token,
+    vault,
+    strategist,
+    whale,
+    strategy,
+    chain,
+    strategist_ms,
 ):
     ## deposit to the vault after approving
     startingWhale = token.balanceOf(whale)
@@ -52,7 +59,14 @@ def test_triggers(
 
 
 def test_less_useful_triggers(
-    gov, token, vault, strategist, whale, strategy, chain, strategist_ms,
+    gov,
+    token,
+    vault,
+    strategist,
+    whale,
+    strategy,
+    chain,
+    strategist_ms,
 ):
     ## deposit to the vault after approving
     startingWhale = token.balanceOf(whale)
@@ -63,11 +77,10 @@ def test_less_useful_triggers(
     chain.sleep(1)
     strategy.harvest({"from": gov})
     chain.sleep(1)
-    
+
     strategy.setMinReportDelay(100, {"from": gov})
     tx = strategy.harvestTrigger(0, {"from": gov})
     print("\nShould we harvest? Should be False.", tx)
     assert tx == False
-    
-    chain.sleep(200)
 
+    chain.sleep(200)

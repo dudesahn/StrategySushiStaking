@@ -5,7 +5,15 @@ import math
 
 
 def test_simple_harvest(
-    gov, token, vault, strategist, whale, strategy, chain, strategist_ms, xsushi,
+    gov,
+    token,
+    vault,
+    strategist,
+    whale,
+    strategy,
+    chain,
+    strategist_ms,
+    xsushi,
 ):
     ## deposit to the vault after approving
     startingWhale = token.balanceOf(whale)
@@ -41,7 +49,7 @@ def test_simple_harvest(
     new_assets = vault.totalAssets()
     # we can't use strategyEstimated Assets because the profits are sent to the vault
     # in this case, we lose a few wei on xsushi. confirm we're no more than 5 wei off.
-    assert (new_assets >= old_assets or math.isclose(new_assets, old_assets, abs_tol=5))
+    assert new_assets >= old_assets or math.isclose(new_assets, old_assets, abs_tol=5)
     print("\nAssets after 7 days: ", new_assets / 1e18)
 
     # Display estimated APR
@@ -58,4 +66,6 @@ def test_simple_harvest(
 
     # withdraw and confirm we made money, or at least that we have about the same
     vault.withdraw({"from": whale})
-    assert (token.balanceOf(whale) >= startingWhale or math.isclose(token.balanceOf(whale), startingWhale, abs_tol=5))
+    assert token.balanceOf(whale) >= startingWhale or math.isclose(
+        token.balanceOf(whale), startingWhale, abs_tol=5
+    )
